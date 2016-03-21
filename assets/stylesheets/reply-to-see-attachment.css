@@ -1,0 +1,9 @@
+div.reply-required, span.reply-required {
+  display: none;
+}
+
+.reply-required-info {
+  padding: 10px;
+  color: #fff;
+  background: #0088cc;
+}
