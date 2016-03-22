@@ -1,6 +1,6 @@
 # name: Reply to See Attachment
 # about: Required reply before sees the attachment
-# version: 2.4
+# version: 2.5
 # authors: Erick Guan (fantasticfears@gmail.com)
 
 enabled_site_setting :reply_to_see_attachment_enabled
@@ -21,9 +21,13 @@ end
 
 module ::TopicViewExtension
   def is_replied
-    Post.where(topic_id: @topic.id, user_id: @user.id)
+    if @user
+      Post.where(topic_id: @topic.id, user_id: @user.id)
         .limit(1)
         .count
+    else
+      false
+    end
   end
 end
 
