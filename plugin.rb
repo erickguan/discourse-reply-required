@@ -1,6 +1,6 @@
 # name: Reply to See Attachment
 # about: Required reply before sees the attachment
-# version: 2.2
+# version: 2.4
 # authors: Erick Guan (fantasticfears@gmail.com)
 
 enabled_site_setting :reply_to_see_attachment_enabled
@@ -14,7 +14,9 @@ REPLY_REQUIRED_REGEXP = /\[回复可见\]((?:(?!\[回复可见\]|\[\/回复可�
 REPLY_REQUIRED_TOPIC_CUSTOM_FILED_NAME = 'reply-required'
 
 def set_topic_custom_field_reply_required(topic_id, flag)
-  TopicCustomField.find_or_create_by(topic_id: topic_id, name: 'reply-required') {|t| t.value = flag }
+  tf = TopicCustomField.find_or_initialize_by(topic_id: topic_id, name: 'reply-required') {|t| t.value = flag }
+  tf.value = flag
+  tf.save
 end
 
 module ::TopicViewExtension
@@ -33,7 +35,7 @@ module ::TopicViewSerializerExtension
     cf = TopicCustomField.find_by(topic_id: object.topic.id,
                                   name: REPLY_REQUIRED_TOPIC_CUSTOM_FILED_NAME)
 
-    if cf && cf.value == "t" # true
+    if cf && (cf.value == "t" || cf.value == "true") # true
       result[:reply_required] = true
       result[:is_replied] = object.is_replied
     end
