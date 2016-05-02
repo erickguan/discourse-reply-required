@@ -1,6 +1,6 @@
 # name: Reply to See Attachment
 # about: Required reply before sees the attachment
-# version: 2.5
+# version: 2.6
 # authors: Erick Guan (fantasticfears@gmail.com)
 
 enabled_site_setting :reply_to_see_attachment_enabled

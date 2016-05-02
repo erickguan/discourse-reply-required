@@ -1,8 +1,8 @@
-div.reply-required, span.reply-required {
+div.reply-required, span.reply-required, div.login-required, span.login-required {
   display: none;
 }
 
-.reply-required-info {
+.reply-required-info, .login-required-info {
   padding: 10px;
   color: #fff;
   background: #0088cc;

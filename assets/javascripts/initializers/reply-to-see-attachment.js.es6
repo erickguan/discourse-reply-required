@@ -1,9 +1,8 @@
 import { decorateCooked } from 'discourse/lib/plugin-api';
-import ApplicationRoute from 'discourse/routes/application';
 import { withPluginApi } from 'discourse/lib/plugin-api';
-import TopicDetails from 'discourse/models/topic-details';
 import Composer from 'discourse/controllers/composer';
 import DiscourseURL from 'discourse/lib/url';
+import DEditor from 'discourse/components/d-editor';
 
 function initializeWithApi(api) {
   const siteSettings = api.container.lookup('site-settings:main');
@@ -27,29 +26,41 @@ function initializeWithApi(api) {
 
     api.onToolbarCreate(toolbar => {
       toolbar.addButton({
+        id: 'reply-to-see-attchment-login',
+        group: 'extras',
+        icon: 'sign-in',
+        action: 'wrapLoginRequired'
+      });
+      toolbar.addButton({
         id: 'reply-to-see-attchment-hide',
         group: 'extras',
         icon: 'lock',
-        perform: e => e.applySurround('[回复可见]', '[/回复可见]', 'reply_to_see')
+        action: 'wrapReplyRequired'
       });
     });
 
-    $('body').off('click.ReplyRequired').on('click.ReplyRequired', '.reply-required-info', function() {
+    $('body').off('click.ReplyRequired').on('click.ReplyRequired', '.reply-required-info, .login-required-info', function() {
       if (!api.getCurrentUser()) {
         if (Discourse.Site.current().get("isReadOnly")) {
           bootbox.alert(I18n.t("read_only_mode.login_disabled"));
         } else {
-          container.lookup('route:application').handleShowLogin()
+          api.container.lookup('route:application').handleShowLogin();
         }
       }
     });
+
     api.decorateCooked(($elem, model) => {
       // Always appears without model, apply only for first post in stream
-      if (model && model.getModel().get('firstPost') || model)
+      if (model && model.getModel().get('firstPost') || model) {
         $('.reply-required', $elem)
           .removeClass('reply-required')
           .addClass('reply-required')
           .replyRequired(); // TODO: can find a way around to hook
+        $('.login-required', $elem)
+          .removeClass('login-required')
+          .addClass('login-required')
+          .loginRequired();
+      }
     });
   }
 }
@@ -61,6 +72,28 @@ export default {
     const siteSettings = container.lookup('site-settings:main');
 
     if (siteSettings.reply_to_see_attachment_enabled) {
+      DEditor.reopen({
+        _wrapRequired(toolbarEvent, name_key) {
+          const sel = this._getSelected(toolbarEvent.trimLeading);
+          var text = `${sel.value}`;
+
+          if (name_key === 'login') {
+            text = `[登录可见]${text}[/登录可见]`;
+          } else {
+            text = `[回复可见]${text}[/回复可见]`;
+          }
+          this.set('value', `${sel.pre}${text}${sel.post}`);
+
+          this._selectText(sel.start, text.length);
+          Ember.run.scheduleOnce("afterRender", () => this.$("textarea.d-editor-input").focus());
+        },
+
+        actions: {
+          wrapLoginRequired(toolbarEvent) { this._wrapRequired(toolbarEvent, 'login'); },
+          wrapReplyRequired(toolbarEvent) { this._wrapRequired(toolbarEvent, 'reply'); }
+        }
+      });
+
       Composer.reopen({
         save(force) {
           const promise = this._super(force);
@@ -78,7 +111,7 @@ export default {
               return promise.then(() => {
                 if (composer.get('replyingToTopic')) {
                   DiscourseURL.routeTo(this.get('topic.firstPostUrl'));
-                  this.get('topic.postStream').refresh()
+                  this.get('topic.postStream').refresh();
                 }
               }).finally(() => Discourse.User.currentProp('disable_jump_reply', oldDisableJumpReply));
             }

@@ -19,7 +19,7 @@ require('discourse/routes/topic').default.on("setupTopicController", function(ev
         hidingElement = $replyRequired;
         infoText = '回复后可查看内容';
       }
-      if (isRepliedState) {
+      if (isRepliedState || Discourse.User.current() && Discourse.User.current().get('staff')) {
         hidingElement.show(true);
       } else {
         hidingElement.show(false).replaceWith('<div class="reply-required-info">' + infoText + '</div>');
@@ -35,10 +35,35 @@ require('discourse/routes/topic').default.on("setupTopicController", function(ev
       }
     };
 
+    var applyLoginRequired = function($loginRequired, options) {
+      var hidingElement, infoText;
+      if ($loginRequired.hasClass('attachment')) {
+        hidingElement = $loginRequired;
+        infoText = '登录后可查看附件';
+      } else {
+        hidingElement = $loginRequired;
+        infoText = '登录后可查看内容';
+      }
+      if (Discourse.User.current()) {
+        hidingElement.show(true);
+      } else {
+        hidingElement.show(false).replaceWith('<div class="login-required-info">' + infoText + '</div>');
+      }
+    };
+
     $.fn.replyRequired = function(options) {
       var opts = options || {},
         replies = this.each(function() {
           applyReplyRequired($(this), opts);
+        });
+
+      return replies;
+    };
+
+    $.fn.loginRequired = function(options) {
+      var opts = options || {},
+        replies = this.each(function() {
+          applyLoginRequired($(this), opts);
         });
 
       return replies;
