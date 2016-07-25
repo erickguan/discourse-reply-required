@@ -7,7 +7,33 @@ import DEditor from 'discourse/components/d-editor';
 function initializeWithApi(api) {
   const siteSettings = api.container.lookup('site-settings:main');
 
-  if (siteSettings.reply_to_see_attachment_enabled) {
+  if (siteSettings.discourse_reply_required_enabled) {
+    var CONTAINS_BLOCK_REGEX = /\n|<img|!\[[^\]]*\][(\[]/;
+
+    function insertReplyRequired(_, replyRequired) {
+      var element = CONTAINS_BLOCK_REGEX.test(replyRequired) ? "div" : "span";
+      return "<" + element + " class='reply-required'>" + replyRequired + "</" + element + ">";
+    }
+
+    function insertLoginRequired(_, loginRequired) {
+      var element = CONTAINS_BLOCK_REGEX.test(loginRequired) ? "div" : "span";
+      return "<" + element + " class='login-required'>" + loginRequired + "</" + element + ">";
+    }
+
+    function replaceRequiredReply(text) {
+      text = text || "";
+      while (text !== (text = text.replace(/\[回复可见\]((?:(?!\[回复可见\]|\[\/回复可见\])[\S\s])*)\[\/回复可见\]/ig, insertReplyRequired)));
+      while (text !== (text = text.replace(/\[登录可见\]((?:(?!\[登录可见\]|\[\/登录可见\])[\S\s])*)\[\/登录可见\]/ig, insertLoginRequired)));
+      return text;
+    }
+
+    
+    Discourse.Dialect.addPreProcessor(function(text) {
+      if (Discourse.SiteSettings.discourse_reply_required_enabled) {
+        text = replaceRequiredReply(text);
+      }
+      return text;
+    });
 
     api.decorateWidget('topic-map:before', helper => {
       const details = helper.getModel().get('topic.details');
@@ -71,7 +97,7 @@ export default {
   initialize(container) {
     const siteSettings = container.lookup('site-settings:main');
 
-    if (siteSettings.reply_to_see_attachment_enabled) {
+    if (siteSettings.discourse_reply_required_enabled) {
       DEditor.reopen({
         _wrapRequired(toolbarEvent, name_key) {
           const sel = this._getSelected(toolbarEvent.trimLeading);
@@ -122,6 +148,6 @@ export default {
       });
     }
 
-    withPluginApi('0.1', initializeWithApi);
+    withPluginApi('0.4', initializeWithApi);
   }
 };

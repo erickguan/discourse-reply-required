@@ -1,4 +1,4 @@
-reply-to-see-attachment
+discourse-reply-required
 ---------------------
 
 Required replies to see attachment in the first post for Discourse.
@@ -15,7 +15,7 @@ hooks:
         cmd:
           - mkdir -p plugins
           - git clone https://github.com/discourse/docker_manager.git
-          - git clone https://github.com/fantasticfears/reply-to-see-attachment.git
+          - git clone https://github.com/fantasticfears/discourse-reply-required.git
 ```
 
 * Rebuild the container
@@ -28,4 +28,4 @@ git pull
 
 ## License
 
-Copyright 2016.
+GPLv2. Copyright 2016, Yujiang Yang.

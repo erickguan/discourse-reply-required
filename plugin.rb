@@ -1,14 +1,14 @@
-# name: Reply to See Attachment
+# name: Discourse Reply Required
 # about: Required reply before sees the attachment
-# version: 2.6
+# version: 0.9
 # authors: Erick Guan (fantasticfears@gmail.com)
 
-enabled_site_setting :reply_to_see_attachment_enabled
+enabled_site_setting :discourse_reply_required_enabled
 
 register_asset "javascripts/reply-required.js"
 register_asset "javascripts/reply-required-dialect.js", :server_side
 
-register_asset "stylesheets/reply-to-see-attachment.css"
+register_asset "stylesheets/discourse-reply-required.css"
 
 REPLY_REQUIRED_REGEXP = /\[回复可见\]((?:(?!\[回复可见\]|\[\/回复可见\])[\S\s])*)\[\/回复可见\]/i
 REPLY_REQUIRED_TOPIC_CUSTOM_FILED_NAME = 'reply-required'
