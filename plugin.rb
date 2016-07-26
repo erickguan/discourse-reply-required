@@ -6,7 +6,6 @@
 enabled_site_setting :discourse_reply_required_enabled
 
 register_asset "javascripts/reply-required.js"
-register_asset "javascripts/reply-required-dialect.js", :server_side
 
 register_asset "stylesheets/discourse-reply-required.css"
 
