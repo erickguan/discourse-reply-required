@@ -1,11 +1,9 @@
 # name: Discourse Reply Required
 # about: Required reply before sees the attachment
-# version: 0.9
+# version: 0.10
 # authors: Erick Guan (fantasticfears@gmail.com)
 
 enabled_site_setting :discourse_reply_required_enabled
-
-register_asset "javascripts/reply-required.js"
 
 register_asset "stylesheets/discourse-reply-required.css"
 

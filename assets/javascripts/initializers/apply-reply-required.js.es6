@@ -1,153 +1,160 @@
 import { decorateCooked } from 'discourse/lib/plugin-api';
 import { withPluginApi } from 'discourse/lib/plugin-api';
-import Composer from 'discourse/controllers/composer';
 import DiscourseURL from 'discourse/lib/url';
 import DEditor from 'discourse/components/d-editor';
 
 function initializeWithApi(api) {
-  const siteSettings = api.container.lookup('site-settings:main');
+  const currentUser = api.getCurrentUser();
 
-  if (siteSettings.discourse_reply_required_enabled) {
-    var CONTAINS_BLOCK_REGEX = /\n|<img|!\[[^\]]*\][(\[]/;
+  $.fn.actionRequired = function(options) {
+    const noticeType = this.hasClass('attachment') ? '附件' : '内容',
+      actionType = options === 'reply' ? '回复' : '登录',
+      noticeText = `${actionType}后可查看${noticeType}`,
+      isRepliedState = api.container.lookup('controller:topic').get('model.details.is_replied');
 
-    function insertReplyRequired(_, replyRequired) {
-      var element = CONTAINS_BLOCK_REGEX.test(replyRequired) ? "div" : "span";
-      return "<" + element + " class='reply-required'>" + replyRequired + "</" + element + ">";
-    }
-
-    function insertLoginRequired(_, loginRequired) {
-      var element = CONTAINS_BLOCK_REGEX.test(loginRequired) ? "div" : "span";
-      return "<" + element + " class='login-required'>" + loginRequired + "</" + element + ">";
-    }
-
-    function replaceRequiredReply(text) {
-      text = text || "";
-      while (text !== (text = text.replace(/\[回复可见\]((?:(?!\[回复可见\]|\[\/回复可见\])[\S\s])*)\[\/回复可见\]/ig, insertReplyRequired)));
-      while (text !== (text = text.replace(/\[登录可见\]((?:(?!\[登录可见\]|\[\/登录可见\])[\S\s])*)\[\/登录可见\]/ig, insertLoginRequired)));
-      return text;
-    }
-
-    
-    Discourse.Dialect.addPreProcessor(function(text) {
-      if (Discourse.SiteSettings.discourse_reply_required_enabled) {
-        text = replaceRequiredReply(text);
+    if (options === 'reply') { // reply action
+      if (isRepliedState || currentUser && currentUser.get('staff')) {
+        this.show(true);
+      } else {
+        this.show(false).replaceWith(`<div class="action-required action-required-notice reply-required-notice">${noticeText}</div>`);
       }
-      return text;
+
+      if (currentUser) {
+        $('body').off('click.ReplyRequired').on('click.ReplyRequired', '.reply-required-info', function () {
+          if (isRepliedState) {
+            window.location.reload(false);
+          } else {
+            api.container.lookup('controller:topic').send('replyToPost');
+          }
+        });
+      }
+    } else { // login action
+      if (currentUser) {
+        this.show(true);
+      } else {
+        this.show(false).replaceWith(`<div class="action-required action-required-notice login-required-notice">${noticeText}</div>`);
+      }
+    }
+  };
+
+  /* Hiding topic widgets */
+  api.decorateWidget('topic-map:before', helper => {
+    const details = helper.getModel().get('topic.details');
+
+    if (details && !details.get('is_replied') && details.get('reply_required') && helper.attrs.topicLinks) {
+      const links = helper.attrs.topicLinks;
+      var newLinks = [];
+
+      for (var i = 0; i < links.length; i++) {
+        if (!links[i].attachment)
+          newLinks.push(links[i]);
+      }
+      helper.attrs.topicLinks = (newLinks.length === 0 ? null : newLinks);
+    }
+  });
+
+  /* Toolbar items */
+  api.onToolbarCreate(toolbar => {
+    toolbar.addButton({
+      id: 'reply-to-see-attchment-login',
+      group: 'extras',
+      icon: 'sign-in',
+      action: 'wrapLoginRequired'
     });
+    toolbar.addButton({
+      id: 'reply-to-see-attchment-hide',
+      group: 'extras',
+      icon: 'lock',
+      action: 'wrapReplyRequired'
+    });
+  });
 
-    api.decorateWidget('topic-map:before', helper => {
-      const details = helper.getModel().get('topic.details');
+  /* Reply Required Login section */
+  $('body').off('click.ReplyRequired').on('click.ReplyRequired', '.reply-required-info, .login-required-info', function() {
+    if (!currentUser) {
+      if (Discourse.Site.current().get("isReadOnly")) {
+        bootbox.alert(I18n.t("read_only_mode.login_disabled"));
+      } else {
+        api.container.lookup('route:application').handleShowLogin();
+      }
+    }
+  });
 
-      if (details && !details.get('is_replied') && details.get('reply_required') && helper.attrs.topicLinks) {
-        const links = helper.attrs.topicLinks;
-        var newLinks = [];
+  /* Markdown baking */
+  api.decorateCooked(($elem, model) => {
+    // Always appears without model, apply only for first post in stream
+    if (model && model.getModel().get('firstPost') || model) {
+      $('.reply-required', $elem)
+        .removeClass('reply-required')
+        .addClass('reply-required')
+        .actionRequired('reply');
+      $('.login-required', $elem)
+        .removeClass('login-required')
+        .addClass('login-required')
+        .actionRequired('login');
+    }
+  });
 
-        for (var i = 0; i < links.length; i++) {
-          if (!links[i].attachment)
-            newLinks.push(links[i]);
+  /* Composer Controls */
+  const ComposerController = api.container.lookupFactory('controller:composer');
+  ComposerController.reopen({
+    save(force) {
+      const promise = this._super(force);
+
+      const details = this.get('topic.details');
+
+      if (details && !details.get('is_replied') && details.get('reply_required')) {
+        const oldDisableJumpReply = currentUser.currentProp('disable_jump_reply');
+
+        // don't jump to post if need a reply
+        currentUser.currentProp('disable_jump_reply', true);
+        const composer = this.get('model');
+
+        if (promise) {
+          return promise.then(() => {
+            if (composer.get('replyingToTopic')) {
+              DiscourseURL.routeTo(this.get('topic.firstPostUrl'));
+              this.get('topic.postStream').refresh();
+            }
+          }).finally(() => currentUser.currentProp('disable_jump_reply', oldDisableJumpReply));
         }
-        helper.attrs.topicLinks = (newLinks.length === 0 ? null : newLinks);
       }
-    });
 
-    api.onToolbarCreate(toolbar => {
-      toolbar.addButton({
-        id: 'reply-to-see-attchment-login',
-        group: 'extras',
-        icon: 'sign-in',
-        action: 'wrapLoginRequired'
-      });
-      toolbar.addButton({
-        id: 'reply-to-see-attchment-hide',
-        group: 'extras',
-        icon: 'lock',
-        action: 'wrapReplyRequired'
-      });
-    });
-
-    $('body').off('click.ReplyRequired').on('click.ReplyRequired', '.reply-required-info, .login-required-info', function() {
-      if (!api.getCurrentUser()) {
-        if (Discourse.Site.current().get("isReadOnly")) {
-          bootbox.alert(I18n.t("read_only_mode.login_disabled"));
-        } else {
-          api.container.lookup('route:application').handleShowLogin();
-        }
-      }
-    });
-
-    api.decorateCooked(($elem, model) => {
-      // Always appears without model, apply only for first post in stream
-      if (model && model.getModel().get('firstPost') || model) {
-        $('.reply-required', $elem)
-          .removeClass('reply-required')
-          .addClass('reply-required')
-          .replyRequired(); // TODO: can find a way around to hook
-        $('.login-required', $elem)
-          .removeClass('login-required')
-          .addClass('login-required')
-          .loginRequired();
-      }
-    });
-  }
+      return promise;
+    }
+  });
 }
 
 export default {
-  name: "apply-reply-required",
+  name: 'apply-reply-required',
 
   initialize(container) {
     const siteSettings = container.lookup('site-settings:main');
 
     if (siteSettings.discourse_reply_required_enabled) {
-      DEditor.reopen({
-        _wrapRequired(toolbarEvent, name_key) {
-          const sel = this._getSelected(toolbarEvent.trimLeading);
-          var text = `${sel.value}`;
-
-          if (name_key === 'login') {
-            text = `[登录可见]${text}[/登录可见]`;
-          } else {
-            text = `[回复可见]${text}[/回复可见]`;
-          }
-          this.set('value', `${sel.pre}${text}${sel.post}`);
-
-          this._selectText(sel.start, text.length);
-          Ember.run.scheduleOnce("afterRender", () => this.$("textarea.d-editor-input").focus());
-        },
-
-        actions: {
-          wrapLoginRequired(toolbarEvent) { this._wrapRequired(toolbarEvent, 'login'); },
-          wrapReplyRequired(toolbarEvent) { this._wrapRequired(toolbarEvent, 'reply'); }
-        }
-      });
-
-      Composer.reopen({
-        save(force) {
-          const promise = this._super(force);
-
-          const details = this.get('topic.details');
-
-          if (details && !details.get('is_replied') && details.get('reply_required')) {
-            const oldDisableJumpReply = Discourse.User.currentProp('disable_jump_reply');
-
-            // don't jump to post if need a reply
-            Discourse.User.currentProp('disable_jump_reply', true);
-            const composer = this.get('model');
-
-            if (promise) {
-              return promise.then(() => {
-                if (composer.get('replyingToTopic')) {
-                  DiscourseURL.routeTo(this.get('topic.firstPostUrl'));
-                  this.get('topic.postStream').refresh();
-                }
-              }).finally(() => Discourse.User.currentProp('disable_jump_reply', oldDisableJumpReply));
-            }
-          }
-
-          return promise;
-        }
-      });
+      withPluginApi('0.4', initializeWithApi);
     }
 
-    withPluginApi('0.4', initializeWithApi);
+    DEditor.reopen({
+      _wrapRequired(toolbarEvent, name_key) {
+        const sel = this._getSelected(toolbarEvent.trimLeading);
+        var text = `${sel.value}`;
+
+        if (name_key === 'login') {
+          text = `[登录可见]${text}[/登录可见]`;
+        } else {
+          text = `[回复可见]${text}[/回复可见]`;
+        }
+        this.set('value', `${sel.pre}${text}${sel.post}`);
+
+        this._selectText(sel.start, text.length);
+        Ember.run.scheduleOnce("afterRender", () => this.$("textarea.d-editor-input").focus());
+      },
+
+      actions: {
+        wrapLoginRequired(toolbarEvent) { this._wrapRequired(toolbarEvent, 'login'); },
+        wrapReplyRequired(toolbarEvent) { this._wrapRequired(toolbarEvent, 'reply'); }
+      }
+    });
   }
 };
