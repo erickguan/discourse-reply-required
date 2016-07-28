@@ -10,7 +10,8 @@ function initializeWithApi(api) {
     const noticeType = this.hasClass('attachment') ? '附件' : '内容',
       actionType = options === 'reply' ? '回复' : '登录',
       noticeText = `${actionType}后可查看${noticeType}`,
-      isRepliedState = api.container.lookup('controller:topic').get('model.details.is_replied');
+      topicController = api.container.lookup('controller:topic'),
+      isRepliedState = topicController.get('model.details.is_replied');
 
     if (options === 'reply') { // reply action
       if (isRepliedState || currentUser && currentUser.get('staff')) {
@@ -20,11 +21,11 @@ function initializeWithApi(api) {
       }
 
       if (currentUser) {
-        $('body').off('click.ReplyRequired').on('click.ReplyRequired', '.reply-required-info', function () {
+        $('body').off('click.ReplyRequired').on('click.ReplyRequired', '.reply-required-notice', function () {
           if (isRepliedState) {
             window.location.reload(false);
           } else {
-            api.container.lookup('controller:topic').send('replyToPost');
+            topicController.send('replyToPost');
           }
         });
       }
@@ -70,7 +71,7 @@ function initializeWithApi(api) {
   });
 
   /* Reply Required Login section */
-  $('body').off('click.ReplyRequired').on('click.ReplyRequired', '.reply-required-info, .login-required-info', function() {
+  $('body').off('click.ReplyRequired').on('click.ReplyRequired', '.action-required-notice', function() {
     if (!currentUser) {
       if (Discourse.Site.current().get("isReadOnly")) {
         bootbox.alert(I18n.t("read_only_mode.login_disabled"));
@@ -102,12 +103,11 @@ function initializeWithApi(api) {
       const promise = this._super(force);
 
       const details = this.get('topic.details');
-
       if (details && !details.get('is_replied') && details.get('reply_required')) {
-        const oldDisableJumpReply = currentUser.currentProp('disable_jump_reply');
+        const oldDisableJumpReply = currentUser.get('disable_jump_reply');
 
         // don't jump to post if need a reply
-        currentUser.currentProp('disable_jump_reply', true);
+        currentUser.set('disable_jump_reply', true);
         const composer = this.get('model');
 
         if (promise) {
@@ -116,7 +116,7 @@ function initializeWithApi(api) {
               DiscourseURL.routeTo(this.get('topic.firstPostUrl'));
               this.get('topic.postStream').refresh();
             }
-          }).finally(() => currentUser.currentProp('disable_jump_reply', oldDisableJumpReply));
+          }).finally(() => currentUser.set('disable_jump_reply', oldDisableJumpReply));
         }
       }
 

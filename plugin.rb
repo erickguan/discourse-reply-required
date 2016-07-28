@@ -1,6 +1,6 @@
 # name: Discourse Reply Required
 # about: Required reply before sees the attachment
-# version: 0.10
+# version: 0.11
 # authors: Erick Guan (fantasticfears@gmail.com)
 
 enabled_site_setting :discourse_reply_required_enabled
@@ -11,9 +11,9 @@ REPLY_REQUIRED_REGEXP = /\[回复可见\]((?:(?!\[回复可见\]|\[\/回复可�
 REPLY_REQUIRED_TOPIC_CUSTOM_FILED_NAME = 'reply-required'
 
 def set_topic_custom_field_reply_required(topic_id, flag)
-  tf = TopicCustomField.find_or_initialize_by(topic_id: topic_id, name: 'reply-required') {|t| t.value = flag }
+  tf = TopicCustomField.find_or_initialize_by(topic_id: topic_id, name: 'reply-required')
   tf.value = flag
-  tf.save
+  tf.save!
 end
 
 module ::TopicViewExtension
