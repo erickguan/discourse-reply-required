@@ -1,5 +1,9 @@
 zh_CN:
-  composer:
-    reply_to_see: 回复后可见的内容
-    reply-to-see-attchment-hide_title: "回复可见"
-    reply-to-see-attchment-hide_text: "创建回复后可见的内容，只对首贴生效"
+  js:
+    composer:
+      reply_to_see: "回复后可见的内容"
+      reply_action_required_title: "回复可见"
+      reply_action_required_text: "创建回复后可见的内容，只对首贴生效"
+      login_action_required_title: "登录可见"
+      login_action_required_text: "创建登录后可见的内容，只对首贴生效"
+      emoji_title: "random"

@@ -1,6 +1,6 @@
 # name: Discourse Reply Required
 # about: Required reply before sees the attachment
-# version: 0.11
+# version: 0.12
 # authors: Erick Guan (fantasticfears@gmail.com)
 
 enabled_site_setting :discourse_reply_required_enabled

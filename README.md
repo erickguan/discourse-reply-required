@@ -29,3 +29,7 @@ git pull
 ## License
 
 GPLv2. Copyright 2016, Yujiang Yang.
+
+## TODO
+
+1. jump to first visible reply required element

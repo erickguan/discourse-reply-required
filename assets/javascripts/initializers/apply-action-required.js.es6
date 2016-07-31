@@ -57,13 +57,13 @@ function initializeWithApi(api) {
   /* Toolbar items */
   api.onToolbarCreate(toolbar => {
     toolbar.addButton({
-      id: 'reply-to-see-attchment-login',
+      id: 'login_action_required',
       group: 'extras',
       icon: 'sign-in',
       action: 'wrapLoginRequired'
     });
     toolbar.addButton({
-      id: 'reply-to-see-attchment-hide',
+      id: 'reply_action_required',
       group: 'extras',
       icon: 'lock',
       action: 'wrapReplyRequired'
